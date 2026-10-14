@@ -2,6 +2,8 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![Fastify](https://img.shields.io/badge/Fastify-5.x-black.svg)](https://fastify.dev/)
+[![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748.svg)](https://www.prisma.io/)
+[![Zod](https://img.shields.io/badge/Zod-4.x-3E67B1.svg)](https://zod.dev/)
 [![Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-green.svg)](#arquitetura)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -12,168 +14,188 @@
 
 ---
 
-## 📌 Visão Geral
+## 📌 Visão Geral do Sistema
 
-A **MTG Manager API** é uma aplicação backend moderna desenvolvida com **Node.js**, **TypeScript** e **Fastify**, fundamentada nos princípios de **Clean Architecture**, **SOLID** e **Design Patterns**.
+A **MTG Manager API** é uma aplicação backend moderna desenvolvida com o ecossistema **Node.js**, **TypeScript (strict mode)** e **Fastify**. O objetivo do sistema é permitir que **Jogadores (Planeswalkers)** realizem cadastros, gerenciem suas coleções e construam seus decks com validações de regras oficiais de Magic: The Gathering, integrando dados reais da **Scryfall API** para validação de atributos oficiais e persistência relacional com **PostgreSQL + Prisma ORM**.
 
-O sistema tem como objetivo permitir o gerenciamento de coleções de cartas e construção de decks de **Magic: The Gathering (MTG)**, adaptando os requisitos do projeto com total fidelidade pedagógica aos critérios de avaliação da disciplina.
-
----
-
-## 🗺️ Mapeamento de Domínio (Adaptação da Especificação)
-
-| Especificação Original (PokéManager) | Adaptação no MTG (MTG Manager API) | Detalhes da Regra de Negócio |
-| :--- | :--- | :--- |
-| **Pokémon** (Catálogo) | **Carta (*Card*)** | Cartas de Magic com `name`, `manaCost`, `cmc`, `typeLine`, `colors`, `rarity`, `power`/`toughness`, etc. |
-| **Catálogo In-Memory** (Entrega 1) | **`InMemoryCardRepository`** | Catálogo local em memória com suporte a filtros dinâmicos via `req.query`. |
-| **PokéAPI** (Entrega 2) | **[Scryfall API](https://scryfall.com/docs/api)** | Integração com a API pública oficial da comunidade de Magic: The Gathering. |
-| **Treinador** (*Trainer*) | **Planeswalker / Jogador** | Usuário que possui sua coleção de cartas e constrói seus decks. |
-| **Time de até 6 Pokémons** | **Deck / Grimório** | Regras de validação de construção de decks (ex: máx. de 4 cópias da mesma carta exceto terrenos básicos). |
+O projeto aplica princípios rigorosos de **Clean Architecture**, **SOLID**, **Padrões de Projeto**, **Validação com Zod** e **Tratamento Global de Erros**.
 
 ---
 
 ## 🏛️ Arquitetura do Sistema (Clean Architecture)
 
-O projeto é estruturado em camadas concêntricas e independentes, respeitando estritamente a **Regra de Dependência** (o domínio nunca conhece detalhes externos):
-
 ```text
 src/
 ├── domain/                    # 🟢 Camada de Domínio (Entidades e Regras de Negócio)
-│   ├── entities/              # Entidade Card com encapsulamento e validações invariantes
-│   ├── repositories/          # Interface ICardRepository e tipos de filtro
-│   ├── errors/                # Erros de domínio (CardNotFoundError, InvalidCardDataError, etc.)
+│   ├── entities/
+│   │   ├── card.entity.ts     # Entidade Card (atributos e invariantes de MTG)
+│   │   └── player.entity.ts   # Entidade Player com regras de deck (limite 60 cartas e máx 4 cópias)
+│   ├── repositories/
+│   │   ├── card.repository.interface.ts    # ICardRepository
+│   │   └── player.repository.interface.ts  # IPlayerRepository
+│   ├── gateways/
+│   │   └── scryfall.gateway.interface.ts   # IScryfallGateway
+│   ├── errors/
+│   │   └── domain.error.ts    # AppError base e exceções especializadas
 │   └── index.ts
 │
-├── application/               # 🔵 Camada de Aplicação (Casos de Uso e Orquestração)
-│   ├── dtos/                  # DTOs de entrada, saída e CardMapper
-│   ├── use-cases/             # Use cases: List, GetById, Create, Update, Delete
+├── application/               # 🔵 Camada de Aplicação (Casos de Uso e DTOs)
+│   ├── dtos/
+│   │   ├── card.dto.ts        # DTOs de Cartas e CardMapper
+│   │   └── player.dto.ts      # DTOs de Jogador/Deck e PlayerMapper
+│   ├── use-cases/
+│   │   ├── search-scryfall.use-case.ts     # Consulta Scryfall API
+│   │   ├── create-player.use-case.ts       # Criação de jogador
+│   │   ├── add-card-to-deck.use-case.ts    # Adição de carta ao deck com regras de negócio
+│   │   ├── get-player-deck.use-case.ts     # Listagem do deck ativo
+│   │   ├── list-cards.use-case.ts
+│   │   ├── get-card-by-id.use-case.ts
+│   │   ├── create-card.use-case.ts
+│   │   ├── update-card.use-case.ts
+│   │   └── delete-card.use-case.ts
 │   └── index.ts
 │
-├── infrastructure/            # 🟠 Camada de Infraestrutura (Implementações Concretas)
-│   ├── repositories/          # InMemoryCardRepository (com seeds clássicas de MTG)
+├── infrastructure/            # 🟠 Camada de Infraestrutura (Prisma, Scryfall, In-Memory)
+│   ├── database/
+│   │   └── prisma.client.ts   # Singleton do PrismaClient
+│   ├── providers/
+│   │   └── scryfall.provider.ts # Implementação de IScryfallGateway via Fetch API
+│   ├── repositories/
+│   │   ├── in-memory-card.repository.ts
+│   │   ├── in-memory-player.repository.ts
+│   │   ├── prisma-card.repository.ts      # Persistência relacional de cartas
+│   │   └── prisma-player.repository.ts    # Persistência relacional de jogadores e decks
 │   └── index.ts
 │
-└── main/                      # 🔴 Camada Principal (Frameworks, Rotas e Configurações)
-    ├── config/                # Instância do Fastify, Swagger, CORS e Global Error Handler
-    ├── controllers/           # CardController conectando HTTP aos Use Cases
-    ├── factories/             # Composition Root / Injeção de dependências
-    ├── routes/                # Definição das rotas Fastify sob /api/v1
-    ├── schemas/               # Schemas de validação e OpenAPI 3.0 / Swagger
-    └── server.ts              # Ponto de entrada (bootstrap do servidor HTTP)
+└── main/                      # 🔴 Camada Principal (Fastify, Zod, OpenAPI e Factories)
+    ├── config/
+    │   └── app.ts             # Fastify, Swagger, CORS e Global Error Handler (AppError/Zod)
+    ├── controllers/
+    │   ├── card.controller.ts
+    │   ├── player.controller.ts
+    │   └── scryfall.controller.ts
+    ├── factories/
+    │   ├── repository.factory.ts # Factory para alternância transparente In-Memory / Prisma
+    │   ├── card.factory.ts
+    │   ├── player.factory.ts
+    │   └── scryfall.factory.ts
+    ├── routes/
+    │   ├── card.routes.ts
+    │   ├── player.routes.ts   # Rotas de jogadores e decks
+    │   └── scryfall.routes.ts # Rotas de consulta à Scryfall API
+    ├── schemas/
+    │   ├── openapi.schemas.ts # Documentação Swagger / OpenAPI 3.0
+    │   └── zod/schemas.ts     # Schemas Zod para validação rigorosa de payloads
+    ├── validators/
+    │   └── zod.validator.ts   # Helper de execução Zod
+    └── server.ts              # Ponto de entrada da aplicação
 ```
+
+---
+
+## 🗄️ Banco de Dados & Docker (PostgreSQL + Prisma)
+
+O projeto inclui configuração pronta para **PostgreSQL + Prisma ORM**:
+
+### Subir o PostgreSQL via Docker (Opcional)
+```bash
+docker compose up -d
+```
+
+### Migrações e Prisma Client
+```bash
+# Copie o arquivo de variáveis de ambiente
+cp .env.example .env
+
+# Gere os tipos do Prisma Client
+npx prisma generate
+
+# Sincronize o banco de dados
+npx prisma db push
+```
+
+> **Nota de Portabilidade:** O sistema possui alternância transparente de repositórios via `repository.factory.ts`. Se `USE_PRISMA=true`, utiliza o `PrismaCardRepository` e `PrismaPlayerRepository` conectados ao PostgreSQL; caso contrário, roda imediatamente com os repositórios `InMemory` sem necessidade de banco externo.
 
 ---
 
 ## 🚀 Como Executar o Projeto
 
-### Pré-requisitos
-- **Node.js** v20+ instalado
-- **npm** (ou yarn/pnpm)
-
-### Instalação
 ```bash
-# Clone o repositório
-git clone https://github.com/BernardoLannes/mtg-manager-api.git
-cd MTG_Decks
-
-# Instale as dependências
+# 1. Instalar dependências
 npm install
-```
 
-### Scripts Disponíveis
-```bash
-# Modo desenvolvimento (com hot reload e suporte aos path aliases)
+# 2. Modo Desenvolvimento (com hot reload e path aliases)
 npm run dev
 
-# Compilação do TypeScript para JavaScript (dist/)
+# 3. Build de Produção
 npm run build
 
-# Execução em produção (após build)
-npm run start
-
-# Verificação estática com ESLint (sem erros/avisos)
+# 4. Verificação de Lint (0 erros)
 npm run lint
 
-# Correção automática com ESLint
-npm run lint:fix
-
-# Formatação de código com Prettier
+# 5. Formatação com Prettier
 npm run format
 ```
 
 ---
 
-## 📚 Documentação Interativa (Swagger / OpenAPI 3.0)
+## 📚 Documentação Interativa (Swagger UI)
 
-Com a aplicação rodando, acesse a interface interativa do Swagger UI em:
-
+Acesse a documentação interativa em:  
 👉 **[http://localhost:3000/api/docs](http://localhost:3000/api/docs)**
 
 ---
 
-## 📡 Endpoints da Entrega 1
+## 📡 Endpoints da API
 
-Todos os endpoints estão prefixados com `/api/v1`.
+### 1. Integração com a Scryfall API Oficial
+- **`GET /api/v1/scryfall/search?name=Black Lotus`**
+  - Consulta a Scryfall pública oficial em tempo real e retorna o DTO formatado com imagem, CMC, tipo, texto e atributos.
 
-### 1. Listar Cartas do Catálogo Local
-- **Método & Rota:** `GET /api/v1/cards`
-- **Filtros opcionais via query parameters:**
-  - `?type=Instant` — Filtra por tipo de carta (Instant, Creature, Artifact, etc.)
-  - `?color=U` — Filtra por cor (`W`, `U`, `B`, `R`, `G`)
-  - `?rarity=rare` — Filtra por raridade (`common`, `uncommon`, `rare`, `mythic`)
-  - `?set=LEA` — Filtra pela edição (ex: LEA - Limited Edition Alpha)
-  - `?name=Lotus` — Busca parcial pelo nome da carta
-- **Resposta de Sucesso:** `200 OK` (Array de cartas)
+### 2. Gerenciamento de Jogadores
+- **`POST /api/v1/players`**
+  - Cadastro de novo jogador no banco de dados com validação de formato de e-mail e nome.
+  - **Body (Validado com Zod):**
+  ```json
+  {
+    "name": "Bernardo Lannes",
+    "email": "bernardo@planeswalker.com"
+  }
+  ```
 
-### 2. Buscar Carta por ID
-- **Método & Rota:** `GET /api/v1/cards/:id`
-- **Resposta de Sucesso:** `200 OK`
-- **Resposta de Erro:** `404 Not Found` se o ID não existir no catálogo.
+### 3. Montagem de Decks (com Regras de Negócio de MTG)
+- **`POST /api/v1/players/:playerId/deck/cards`**
+  - Adiciona uma carta ao deck do jogador.
+  - **Body (Validado com Zod):**
+  ```json
+  {
+    "cardName": "Counterspell",
+    "quantity": 4
+  }
+  ```
+  - **Regras de Negócio de MTG Validadas:**
+    - Busca dados oficiais da carta na Scryfall API.
+    - Valida limite do deck (máx. 60 cartas no deck ativo).
+    - Valida limite de cópias (máx. 4 cópias de cartas não-terreno básico).
+    - Terrenos básicos (*Plains, Island, Swamp, Mountain, Forest, Wastes*) são isentos da regra de 4 cópias.
+    - Persiste a carta no banco de dados associada ao jogador e ao seu deck.
 
-### 3. Cadastrar Carta Manualmente
-- **Método & Rota:** `POST /api/v1/cards`
-- **Corpo da Requisição (JSON):**
-```json
-{
-  "name": "Mox Sapphire",
-  "manaCost": "{0}",
-  "cmc": 0,
-  "typeLine": "Artifact",
-  "oracleText": "{T}: Add {U}.",
-  "colors": [],
-  "rarity": "rare",
-  "set": "LEA",
-  "imageUrl": "https://cards.scryfall.io/normal/front/e/a/ea494052-e34a-4352-8778-878980b56f1e.jpg"
-}
-```
-- **Resposta de Sucesso:** `201 Created`
+### 4. Consulta do Deck Ativo
+- **`GET /api/v1/players/:playerId/deck`**
+  - Retorna o deck completo com total de cartas, quantidades e objetos de carta formatados.
 
-### 4. Atualizar Dados de uma Carta
-- **Método & Rota:** `PUT /api/v1/cards/:id`
-- **Corpo da Requisição (JSON):** Campos opcionais a serem atualizados (`name`, `manaCost`, `typeLine`, `oracleText`, etc.)
-- **Resposta de Sucesso:** `200 OK`
-
-### 5. Remover Carta do Catálogo
-- **Método & Rota:** `DELETE /api/v1/cards/:id`
-- **Resposta de Sucesso:** `204 No Content`
-
----
-
-## 🃏 Cartas Iniciais Inclusas no Catálogo (Seeds)
-
-Para facilitar a experimentação imediata, o catálogo inicial vem pré-povoado com cartas canônicas:
-- **Black Lotus** (`Artifact`, Rara, LEA)
-- **Lightning Bolt** (`Instant`, Comum, LEA, Vermelha)
-- **Counterspell** (`Instant`, Incomum, LEA, Azul)
-- **Birds of Paradise** (`Creature — Bird`, Rara, LEA, Verde)
-- **Dark Ritual** (`Instant`, Comum, LEA, Preta)
-- **Serra Angel** (`Creature — Angel`, Incomum, LEA, Branca)
+### 5. Catálogo Local de Cartas
+- `GET /api/v1/cards` — Lista cartas do catálogo local com filtros via `req.query` (`?type=`, `?color=`, `?rarity=`, `?set=`, `?name=`).
+- `GET /api/v1/cards/:id` — Busca carta local por ID.
+- `POST /api/v1/cards` — Cadastro manual no catálogo local.
+- `PUT /api/v1/cards/:id` — Atualização no catálogo local.
+- `DELETE /api/v1/cards/:id` — Remoção do catálogo local.
 
 ---
 
-## 🗓️ Roteiro das Próximas Entregas
+## 🗓️ Roteiro das Entregas (Checkpoints)
 
 - [x] **Entrega 1:** Clean Architecture, Repositório In-Memory, Contrato REST e Swagger.
-- [ ] **Entrega 2:** Persistência Relacional com **PostgreSQL + Prisma ORM**, Integração com **Scryfall API Gateway**, Validação avançada com **Zod**, Modelagem de Planeswalkers/Decks e regras de negócio de construção de baralhos.
-- [ ] **Entrega 3:** Autenticação e Segurança (JWT, bcrypt/argon2, Helmet, Rate Limiting).
+- [x] **Entrega 2:** Persistência Relacional (PostgreSQL + Prisma ORM), Validação com Zod, Integração Scryfall API Gateway, Regras de Negócio de Construção de Decks e Middleware Global de Erros (`AppError`).
+- [ ] **Entrega 3:** Autenticação e Segurança (JWT, bcrypt/argon2, Helmet, CORS, Rate Limiting).
 - [ ] **Entrega 4:** Testes Automatizados (Vitest/Supertest), Docker, Docker Compose e CI/CD com GitHub Actions.

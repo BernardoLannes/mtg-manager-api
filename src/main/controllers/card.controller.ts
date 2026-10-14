@@ -1,14 +1,18 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import {
-  CreateCardInputDto,
   CreateCardUseCase,
   DeleteCardUseCase,
   GetCardByIdUseCase,
   ListCardsUseCase,
-  UpdateCardInputDto,
   UpdateCardUseCase,
 } from '@application/index';
-import { CardFilterInputDto } from '@application/dtos/card.dto';
+import {
+  cardParamsSchema,
+  createCardBodySchema,
+  listCardsQuerySchema,
+  updateCardBodySchema,
+} from '../schemas/zod/schemas';
+import { validatePayload } from '../validators/zod.validator';
 
 export class CardController {
   constructor(
@@ -19,46 +23,34 @@ export class CardController {
     private readonly deleteCardUseCase: DeleteCardUseCase,
   ) {}
 
-  public list = async (
-    request: FastifyRequest<{ Querystring: CardFilterInputDto }>,
-    reply: FastifyReply,
-  ): Promise<void> => {
-    const cards = await this.listCardsUseCase.execute(request.query);
+  public list = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const query = validatePayload(listCardsQuerySchema, request.query);
+    const cards = await this.listCardsUseCase.execute(query);
     reply.status(200).send(cards);
   };
 
-  public getById = async (
-    request: FastifyRequest<{ Params: { id: string } }>,
-    reply: FastifyReply,
-  ): Promise<void> => {
-    const { id } = request.params;
-    const card = await this.getCardByIdUseCase.execute(id);
+  public getById = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const params = validatePayload(cardParamsSchema, request.params);
+    const card = await this.getCardByIdUseCase.execute(params.id);
     reply.status(200).send(card);
   };
 
-  public create = async (
-    request: FastifyRequest<{ Body: CreateCardInputDto }>,
-    reply: FastifyReply,
-  ): Promise<void> => {
-    const created = await this.createCardUseCase.execute(request.body);
+  public create = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const body = validatePayload(createCardBodySchema, request.body);
+    const created = await this.createCardUseCase.execute(body);
     reply.status(201).send(created);
   };
 
-  public update = async (
-    request: FastifyRequest<{ Params: { id: string }; Body: UpdateCardInputDto }>,
-    reply: FastifyReply,
-  ): Promise<void> => {
-    const { id } = request.params;
-    const updated = await this.updateCardUseCase.execute(id, request.body);
+  public update = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const params = validatePayload(cardParamsSchema, request.params);
+    const body = validatePayload(updateCardBodySchema, request.body);
+    const updated = await this.updateCardUseCase.execute(params.id, body);
     reply.status(200).send(updated);
   };
 
-  public delete = async (
-    request: FastifyRequest<{ Params: { id: string } }>,
-    reply: FastifyReply,
-  ): Promise<void> => {
-    const { id } = request.params;
-    await this.deleteCardUseCase.execute(id);
+  public delete = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const params = validatePayload(cardParamsSchema, request.params);
+    await this.deleteCardUseCase.execute(params.id);
     reply.status(204).send();
   };
 }

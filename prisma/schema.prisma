@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  deckCards DeckCard[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("players")
+}
+
+model Card {
+  id         String     @id @default(uuid())
+  name       String     @unique
+  manaCost   String
+  cmc        Float
+  typeLine   String
+  oracleText String?
+  colors     String     @default("")
+  rarity     String
+  set        String
+  power      String?
+  toughness  String?
+  imageUrl   String?
+  deckCards  DeckCard[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@map("cards")
+}
+
+model DeckCard {
+  id        String   @id @default(uuid())
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  addedAt   DateTime @default(now())
+
+  @@unique([playerId, cardId])
+  @@map("deck_cards")
+}
+
