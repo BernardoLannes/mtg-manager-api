@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MTG Manager — Decks & Planeswalkers</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            mana: {
+              white: '#F9FAF4',
+              blue: '#0E68AB',
+              black: '#150B00',
+              red: '#D3202A',
+              green: '#00733E',
+              gold: '#C99700',
+              colorless: '#94A3B8',
+            },
+            mtg: {
+              dark: '#0B0F17',
+              card: '#161D2B',
+              border: '#27354A',
+              accent: '#E5A00D',
+              accentHover: '#F5B01D',
+            }
+          },
+          fontFamily: {
+            display: ['Cinzel', 'serif'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Cinzel & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- SweetAlert2 for modern alerts -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 0%, #172338 0%, #0B0F17 70%);
+      min-height: 100vh;
+    }
+    .card-glow:hover {
+      box-shadow: 0 0 25px rgba(229, 160, 13, 0.35);
+      transform: translateY(-4px);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0B0F17;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #27354A;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #E5A00D;
+    }
+  </style>
+</head>
+<body class="text-slate-100 font-sans selection:bg-amber-500 selection:text-black">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-mtg-border/60 bg-mtg-dark/80 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-300 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 font-black text-xl">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+        </div>
+        <div>
+          <h1 class="font-display font-bold text-lg sm:text-xl tracking-wider text-amber-400">
+            MTG MANAGER
+          </h1>
+          <p class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Grimório de Decks & Coleções</p>
+        </div>
+      </div>
+
+      <!-- Navigation & Status -->
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        <!-- API Status Indicator -->
+        <div id="apiStatusBadge" class="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>API Online</span>
+        </div>
+
+        <!-- Swagger Docs Link -->
+        <a href="/api/docs" target="_blank" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5 shadow">
+          <i class="fa-solid fa-book-bookmark text-amber-400"></i>
+          <span>Swagger Docs</span>
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Hero / Action Bar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-mtg-card/70 border border-mtg-border p-6 rounded-2xl shadow-xl backdrop-blur-sm">
+      <div>
+        <h2 class="font-display text-2xl font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-users text-amber-400"></i>
+          Planeswalkers & Decks
+        </h2>
+        <p class="text-slate-400 text-sm mt-1">
+          Gerencie jogadores, consulte cartas na Scryfall em tempo real e monte decks respeitando as regras oficiais.
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="openNewPlayerModal()" class="px-4 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20 transition flex items-center gap-2 active:scale-95">
+          <i class="fa-solid fa-user-plus"></i>
+          <span>Novo Jogador</span>
+        </button>
+        <button onclick="refreshData()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 transition active:scale-95" title="Atualizar dados">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Players Cards Carousel / Grid -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <i class="fa-solid fa-circle-dot text-amber-400 text-[10px]"></i>
+          Selecione um Jogador para gerenciar o Deck
+        </h3>
+        <span id="playerCountBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">0 jogadores</span>
+      </div>
+
+      <div id="playersListContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <!-- Rendered dynamically via JS -->
+      </div>
+    </div>
+
+    <!-- Active Deck Workspace Section -->
+    <div id="deckWorkspace" class="hidden space-y-6">
+      
+      <!-- Deck Overview Header -->
+      <div class="bg-mtg-card border border-mtg-border rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 opacity-5 pointer-events-none text-9xl">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+          <div>
+            <div class="flex items-center gap-3">
+              <span class="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-xl font-bold">
+                <i class="fa-solid fa-shield-halved"></i>
+              </span>
+              <div>
+                <span class="text-xs font-semibold text-amber-400 uppercase tracking-wider">Deck Ativo de</span>
+                <h3 id="currentDeckPlayerName" class="font-display text-2xl font-extrabold text-white">Carregando...</h3>
+                <p id="currentDeckPlayerEmail" class="text-xs text-slate-400">email@exemplo.com</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats & Progress -->
+          <div class="flex flex-wrap items-center gap-6">
+            <!-- Counter -->
+            <div class="bg-slate-900/80 border border-mtg-border/60 px-5 py-3 rounded-xl">
+              <div class="text-xs text-slate-400 font-medium">Tamanho do Deck</div>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span id="deckTotalCardsCount" class="text-2xl font-extrabold text-amber-400">0</span>
+                <span class="text-xs text-slate-500 font-semibold">/ 60 cartas</span>
+              </div>
+              <!-- Progress bar -->
+              <div class="w-36 h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                <div id="deckProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Action: Add Card -->
+            <button onclick="openAddCardModal()" class="px-5 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 text-slate-950 shadow-lg shadow-amber-500/25 transition flex items-center gap-2 active:scale-95">
+              <i class="fa-solid fa-plus-circle text-base"></i>
+              <span>Adicionar Carta (Scryfall)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Rules notice -->
+        <div class="mt-6 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-scale-balanced text-amber-400"></i>
+            <span><strong>Regras de MTG:</strong> Máximo de 4 cópias de cada carta (terrenos básicos são ilimitados). Limite de até 60 cartas.</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-slate-500">
+            <i class="fa-solid fa-cloud-arrow-down"></i>
+            <span>Dados sincronizados com a <strong>Scryfall API</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cards in Deck Grid -->
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="font-display font-bold text-lg text-white flex items-center gap-2">
+            <i class="fa-solid fa-cards text-amber-400"></i>
+            Cartas no Grimório
+          </h4>
+          <span id="uniqueCardsCountBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">0 cartas distintas</span>
+        </div>
+
+        <div id="deckCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <!-- Rendered dynamically via JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Local Card Catalog Section -->
+    <div class="bg-mtg-card/50 border border-mtg-border rounded-2xl p-6 shadow-xl">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h3 class="font-display font-bold text-xl text-white flex items-center gap-2">
+            <i class="fa-solid fa-box-archive text-amber-400"></i>
+            Catálogo Local de Cartas (Entrega 1)
+          </h3>
+          <p class="text-slate-400 text-xs mt-1">Consulte as cartas cadastradas no repositório da aplicação com filtros dinâmicos.</p>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap items-center gap-2">
+          <input id="catalogSearchInput" type="text" placeholder="Filtrar por nome..." oninput="filterCatalog()" class="px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-amber-400" />
+          
+          <select id="catalogTypeSelect" onchange="filterCatalog()" class="px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400">
+            <option value="">Todos os Tipos</option>
+            <option value="Artifact">Artifact</option>
+            <option value="Creature">Creature</option>
+            <option value="Instant">Instant</option>
+            <option value="Land">Land</option>
+            <option value="Sorcery">Sorcery</option>
+          </select>
+
+          <select id="catalogColorSelect" onchange="filterCatalog()" class="px-3 py-1.5 text-xs bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-amber-400">
+            <option value="">Todas as Cores</option>
+            <option value="W">Branco (W)</option>
+            <option value="U">Azul (U)</option>
+            <option value="B">Preto (B)</option>
+            <option value="R">Vermelho (R)</option>
+            <option value="G">Verde (G)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="catalogCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Modal: Create New Player -->
+  <div id="newPlayerModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-mtg-card border border-mtg-border w-full max-w-md rounded-2xl p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <h3 class="font-display font-bold text-lg text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-plus text-amber-400"></i>
+          Cadastrar Novo Planeswalker
+        </h3>
+        <button onclick="closeNewPlayerModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="newPlayerForm" onsubmit="handleCreatePlayer(event)" class="space-y-4 mt-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">Nome Completo</label>
+          <input id="playerNameInput" type="text" required placeholder="Ex: Jace Beleren" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">E-mail</label>
+          <input id="playerEmailInput" type="email" required placeholder="Ex: jace@ravnica.org" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400" />
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeNewPlayerModal()" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition">
+            Cancelar
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg shadow-amber-500/20">
+            Cadastrar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Card via Scryfall -->
+  <div id="addCardModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-mtg-card border border-mtg-border w-full max-w-lg rounded-2xl p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+          <h3 class="font-display font-bold text-lg text-white flex items-center gap-2">
+            <i class="fa-solid fa-magnifying-glass text-amber-400"></i>
+            Buscar Carta na Scryfall API
+          </h3>
+          <p class="text-xs text-slate-400">Busca oficial em tempo real com imagem e estatísticas oficiais.</p>
+        </div>
+        <button onclick="closeAddCardModal()" class="text-slate-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Search Input -->
+      <div class="mt-4 flex gap-2">
+        <input id="scryfallSearchInput" type="text" placeholder="Nome da carta (ex: Lightning Bolt, Black Lotus, Sol Ring)..." class="flex-1 px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-400" onkeydown="if(event.key==='Enter') executeScryfallSearch()" />
+        <button onclick="executeScryfallSearch()" class="px-4 py-2.5 rounded-xl font-bold text-sm bg-amber-500 hover:bg-amber-400 text-slate-950 transition">
+          <i class="fa-solid fa-search"></i>
+        </button>
+      </div>
+
+      <!-- Preview Container -->
+      <div id="scryfallPreviewContainer" class="mt-4 p-4 rounded-xl bg-slate-900/90 border border-slate-800 min-h-[220px] flex items-center justify-center text-slate-500 text-xs">
+        Digite o nome de uma carta e clique em buscar para carregar os atributos oficiais da Scryfall.
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-between pt-4 border-t border-slate-800 mt-4">
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold text-slate-300">Quantidade:</label>
+          <select id="cardQuantitySelect" class="bg-slate-900 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1.5 focus:border-amber-400">
+            <option value="1">1 cópia</option>
+            <option value="2">2 cópias</option>
+            <option value="3">3 cópias</option>
+            <option value="4" selected>4 cópias (máximo padrão)</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="closeAddCardModal()" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white">
+            Fechar
+          </button>
+          <button id="addCardToDeckBtn" onclick="handleAddCardToDeck()" disabled class="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-amber-500/20">
+            Adicionar ao Deck
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Frontend Application Logic -->
+  <script>
+    let players = [];
+    let currentSelectedPlayerId = null;
+    let catalogCards = [];
+    let currentScryfallCard = null;
+
+    // Toast helper
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true,
+      background: '#161D2B',
+      color: '#F8FAFC'
+    });
+
+    // On Load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkApiHealth();
+      loadPlayers();
+      loadCatalogCards();
+    });
+
+    async function checkApiHealth() {
+      try {
+        const res = await fetch('/api/v1/health');
+        if (res.ok) {
+          document.getElementById('apiStatusBadge').classList.remove('hidden');
+        }
+      } catch (err) {
+        console.warn('API health check error:', err);
+      }
+    }
+
+    // Load Players from GET /api/v1/players
+    async function loadPlayers() {
+      try {
+        const res = await fetch('/api/v1/players');
+        if (!res.ok) throw new Error('Falha ao buscar jogadores');
+        players = await res.json();
+        renderPlayersList();
+
+        // If currently viewing a player, refresh their deck
+        if (currentSelectedPlayerId) {
+          selectPlayer(currentSelectedPlayerId, false);
+        } else if (players.length > 0) {
+          // Select first player by default
+          selectPlayer(players[0].id, false);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderPlayersList() {
+      const container = document.getElementById('playersListContainer');
+      document.getElementById('playerCountBadge').innerText = `${players.length} jogador(es)`;
+
+      if (players.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-8 text-center text-slate-500 bg-mtg-card/40 border border-dashed border-slate-800 rounded-2xl">
+            <i class="fa-solid fa-ghost text-3xl mb-2 text-slate-600"></i>
+            <p class="text-sm">Nenhum Planeswalker cadastrado ainda.</p>
+            <button onclick="openNewPlayerModal()" class="mt-3 text-xs text-amber-400 underline hover:text-amber-300">
+              Cadastre o primeiro jogador
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = players.map(p => {
+        const isSelected = p.id === currentSelectedPlayerId;
+        return `
+          <div onclick="selectPlayer('${p.id}')" class="cursor-pointer transition p-4 rounded-xl border ${isSelected ? 'border-amber-400 bg-slate-800/90 shadow-lg shadow-amber-500/10' : 'border-mtg-border bg-mtg-card/80 hover:border-slate-600'} card-glow flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center font-bold text-slate-950 text-sm">
+                  ${p.name.substring(0, 2).toUpperCase()}
+                </div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${p.totalCards > 0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-500'}">
+                  ${p.totalCards} cartas
+                </span>
+              </div>
+              <h4 class="font-bold text-sm text-white truncate">${p.name}</h4>
+              <p class="text-xs text-slate-400 truncate mt-0.5">${p.email}</p>
+            </div>
+            
+            <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="${isSelected ? 'text-amber-400 font-semibold' : 'text-slate-500'}">
+                ${isSelected ? 'Deck Selecionado' : 'Clique para ver deck'}
+              </span>
+              <i class="fa-solid fa-chevron-right text-[10px] ${isSelected ? 'text-amber-400' : 'text-slate-600'}"></i>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Select Player & Load Deck from GET /api/v1/players/:id/deck
+    async function selectPlayer(playerId, scrollIntoView = true) {
+      currentSelectedPlayerId = playerId;
+      renderPlayersList();
+
+      const deckWorkspace = document.getElementById('deckWorkspace');
+      deckWorkspace.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/api/v1/players/${playerId}/deck`);
+        if (!res.ok) throw new Error('Falha ao carregar deck do jogador');
+        const deckData = await res.json();
+        renderDeckDetails(deckData);
+
+        if (scrollIntoView) {
+          deckWorkspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } catch (err) {
+        Toast.fire({ icon: 'error', title: 'Erro ao carregar o deck' });
+      }
+    }
+
+    function renderDeckDetails(data) {
+      document.getElementById('currentDeckPlayerName').innerText = data.playerName;
+      document.getElementById('currentDeckPlayerEmail').innerText = data.playerEmail;
+      document.getElementById('deckTotalCardsCount').innerText = data.totalCards;
+
+      const percentage = Math.min(100, Math.round((data.totalCards / 60) * 100));
+      document.getElementById('deckProgressBar').style.width = `${percentage}%`;
+
+      document.getElementById('uniqueCardsCountBadge').innerText = `${data.deck.length} carta(s) distinta(s)`;
+
+      const container = document.getElementById('deckCardsContainer');
+      if (data.deck.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-500 bg-slate-900/60 border border-dashed border-slate-800 rounded-2xl">
+            <i class="fa-solid fa-scroll text-3xl mb-2 text-slate-600"></i>
+            <p class="text-sm">O grimório deste jogador ainda está vazio.</p>
+            <button onclick="openAddCardModal()" class="mt-3 px-4 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400">
+              Adicionar primeira carta
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = data.deck.map(item => {
+        const card = item.card;
+        const fallbackImg = 'https://cards.scryfall.io/back.png';
+        const img = card.imageUrl || fallbackImg;
+
+        return `
+          <div class="group relative rounded-xl overflow-hidden bg-slate-900 border border-mtg-border/70 hover:border-amber-400/80 transition-all duration-300 card-glow flex flex-col justify-between">
+            <!-- Badge quantity -->
+            <div class="absolute top-2 left-2 z-20">
+              <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-amber-500 text-slate-950 shadow-md">
+                x${item.quantity}
+              </span>
+            </div>
+
+            <!-- Card Image -->
+            <div class="relative overflow-hidden aspect-[2.5/3.5] bg-slate-950">
+              <img src="${img}" alt="${card.name}" loading="lazy" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            </div>
+
+            <!-- Card Info -->
+            <div class="p-2.5 bg-slate-900">
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="font-bold text-white truncate max-w-[70%]">${card.name}</span>
+                <span class="font-semibold text-amber-400">${card.manaCost || ''}</span>
+              </div>
+              <div class="flex items-center justify-between text-[10px] text-slate-400">
+                <span class="truncate max-w-[65%]">${card.typeLine}</span>
+                <span class="uppercase font-mono px-1 rounded bg-slate-800 text-slate-300 text-[9px]">${card.rarity.substring(0, 1)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Modal: New Player
+    function openNewPlayerModal() {
+      document.getElementById('newPlayerModal').classList.remove('hidden');
+      document.getElementById('playerNameInput').focus();
+    }
+    function closeNewPlayerModal() {
+      document.getElementById('newPlayerModal').classList.add('hidden');
+      document.getElementById('newPlayerForm').reset();
+    }
+
+    async function handleCreatePlayer(event) {
+      event.preventDefault();
+      const name = document.getElementById('playerNameInput').value.trim();
+      const email = document.getElementById('playerEmailInput').value.trim();
+
+      try {
+        const res = await fetch('/api/v1/players', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || 'Erro ao criar jogador');
+        }
+
+        Toast.fire({ icon: 'success', title: `Planeswalker ${data.name} criado com sucesso!` });
+        closeNewPlayerModal();
+        await loadPlayers();
+        selectPlayer(data.id);
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro no Cadastro',
+          text: err.message,
+          background: '#161D2B',
+          color: '#F8FAFC',
+          confirmButtonColor: '#E5A00D'
+        });
+      }
+    }
+
+    // Modal: Add Card via Scryfall
+    function openAddCardModal() {
+      if (!currentSelectedPlayerId) {
+        Toast.fire({ icon: 'warning', title: 'Selecione um jogador primeiro' });
+        return;
+      }
+      document.getElementById('addCardModal').classList.remove('hidden');
+      document.getElementById('scryfallSearchInput').focus();
+    }
+    function closeAddCardModal() {
+      document.getElementById('addCardModal').classList.add('hidden');
+      document.getElementById('scryfallSearchInput').value = '';
+      document.getElementById('scryfallPreviewContainer').innerHTML = `
+        <span class="text-slate-500 text-xs">Digite o nome de uma carta e clique em buscar para carregar os atributos oficiais da Scryfall.</span>
+      `;
+      currentScryfallCard = null;
+      document.getElementById('addCardToDeckBtn').disabled = true;
+    }
+
+    async function executeScryfallSearch() {
+      const term = document.getElementById('scryfallSearchInput').value.trim();
+      if (!term) return;
+
+      const preview = document.getElementById('scryfallPreviewContainer');
+      preview.innerHTML = `
+        <div class="flex items-center gap-2 text-amber-400 text-xs">
+          <i class="fa-solid fa-circle-notch fa-spin"></i>
+          <span>Consultando API oficial da Scryfall...</span>
+        </div>
+      `;
+
+      try {
+        const res = await fetch(`/api/v1/scryfall/search?name=${encodeURIComponent(term)}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || 'Carta não encontrada na Scryfall');
+        }
+
+        currentScryfallCard = data;
+        document.getElementById('addCardToDeckBtn').disabled = false;
+
+        const img = data.imageUrl || 'https://cards.scryfall.io/back.png';
+
+        preview.innerHTML = `
+          <div class="flex gap-4 w-full">
+            <div class="w-32 flex-shrink-0">
+              <img src="${img}" alt="${data.name}" class="rounded-lg shadow-md w-full border border-slate-700" />
+            </div>
+            <div class="flex-1 text-left flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between">
+                  <h4 class="font-bold text-white text-sm">${data.name}</h4>
+                  <span class="text-amber-400 font-mono text-xs">${data.manaCost || ''}</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">${data.typeLine}</p>
+                <p class="text-[10px] text-slate-300 mt-2 bg-slate-950/70 p-2 rounded border border-slate-800 line-clamp-3">
+                  ${data.oracleText || 'Sem texto de regras.'}
+                </p>
+              </div>
+
+              <div class="flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                <span>Edição: <strong class="text-white">${data.set}</strong></span>
+                <span class="capitalize">Raridade: <strong class="text-amber-400">${data.rarity}</strong></span>
+              </div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        currentScryfallCard = null;
+        document.getElementById('addCardToDeckBtn').disabled = true;
+        preview.innerHTML = `
+          <div class="text-center text-rose-400 text-xs">
+            <i class="fa-solid fa-triangle-exclamation mb-1 text-sm"></i>
+            <p>${err.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    async function handleAddCardToDeck() {
+      if (!currentSelectedPlayerId || !currentScryfallCard) return;
+
+      const quantity = Number(document.getElementById('cardQuantitySelect').value);
+
+      try {
+        const res = await fetch(`/api/v1/players/${currentSelectedPlayerId}/deck/cards`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardName: currentScryfallCard.name,
+            quantity: quantity,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          // Rule validation failure
+          Swal.fire({
+            icon: 'warning',
+            title: 'Regra de MTG Violada!',
+            text: data.message,
+            background: '#161D2B',
+            color: '#F8FAFC',
+            confirmButtonColor: '#E5A00D'
+          });
+          return;
+        }
+
+        Toast.fire({
+          icon: 'success',
+          title: `+${quantity}x ${currentScryfallCard.name} adicionado ao grimório!`
+        });
+
+        closeAddCardModal();
+        await loadPlayers();
+        selectPlayer(currentSelectedPlayerId, false);
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Erro',
+          text: err.message,
+          background: '#161D2B',
+          color: '#F8FAFC',
+          confirmButtonColor: '#E5A00D'
+        });
+      }
+    }
+
+    // Load Local Catalog from GET /api/v1/cards
+    async function loadCatalogCards() {
+      try {
+        const res = await fetch('/api/v1/cards');
+        if (!res.ok) throw new Error('Falha ao buscar catálogo');
+        catalogCards = await res.json();
+        renderCatalogCards(catalogCards);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function filterCatalog() {
+      const term = document.getElementById('catalogSearchInput').value.toLowerCase();
+      const type = document.getElementById('catalogTypeSelect').value.toLowerCase();
+      const color = document.getElementById('catalogColorSelect').value.toUpperCase();
+
+      let filtered = catalogCards;
+
+      if (term) {
+        filtered = filtered.filter(c => c.name.toLowerCase().includes(term));
+      }
+      if (type) {
+        filtered = filtered.filter(c => c.typeLine.toLowerCase().includes(type));
+      }
+      if (color) {
+        filtered = filtered.filter(c => c.colors && c.colors.includes(color));
+      }
+
+      renderCatalogCards(filtered);
+    }
+
+    function renderCatalogCards(cards) {
+      const container = document.getElementById('catalogCardsContainer');
+      if (cards.length === 0) {
+        container.innerHTML = `<div class="col-span-full py-6 text-center text-xs text-slate-500">Nenhuma carta encontrada com esses filtros.</div>`;
+        return;
+      }
+
+      container.innerHTML = cards.map(c => {
+        const img = c.imageUrl || 'https://cards.scryfall.io/back.png';
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden card-glow transition flex flex-col justify-between">
+            <div class="aspect-[2.5/3.5] bg-slate-950 overflow-hidden">
+              <img src="${img}" alt="${c.name}" loading="lazy" class="w-full h-full object-cover hover:scale-105 transition duration-300" />
+            </div>
+            <div class="p-2">
+              <div class="font-bold text-xs text-white truncate">${c.name}</div>
+              <div class="text-[10px] text-slate-400 truncate">${c.typeLine}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function refreshData() {
+      Toast.fire({ icon: 'info', title: 'Atualizando dados...' });
+      loadPlayers();
+      loadCatalogCards();
+    }
+  </script>
+</body>
+</html>

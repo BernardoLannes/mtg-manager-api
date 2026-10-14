@@ -1,7 +1,9 @@
+import path from 'path';
 import fastify, { FastifyError, FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import fastifyStatic from '@fastify/static';
 import { ZodError } from 'zod';
 import { AppError } from '@domain/errors/domain.error';
 import { cardRoutes } from '../routes/card.routes';
@@ -23,6 +25,12 @@ export function buildApp(): FastifyInstance {
   // CORS
   app.register(cors, {
     origin: '*',
+  });
+
+  // Serve static UI assets from /public
+  app.register(fastifyStatic, {
+    root: path.join(process.cwd(), 'public'),
+    prefix: '/',
   });
 
   // Swagger (OpenAPI 3.0)
