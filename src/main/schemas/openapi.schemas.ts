@@ -81,6 +81,18 @@ export const searchScryfallRouteSchema = {
   },
 };
 
+export const listPlayersRouteSchema = {
+  summary: 'List all registered players',
+  description: 'Retrieves all registered players with summary of their card counts.',
+  tags: ['Players'],
+  response: {
+    200: {
+      type: 'array',
+      items: playerResponseSchema,
+    },
+  },
+};
+
 export const createPlayerRouteSchema = {
   summary: 'Register new Player / Planeswalker in database',
   description: 'Creates a new player record in the relational database.',

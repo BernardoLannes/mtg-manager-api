@@ -3,6 +3,7 @@ import {
   AddCardToDeckUseCase,
   CreatePlayerUseCase,
   GetPlayerDeckUseCase,
+  ListPlayersUseCase,
 } from '@application/index';
 import {
   addCardToDeckBodySchema,
@@ -14,9 +15,15 @@ import { validatePayload } from '../validators/zod.validator';
 export class PlayerController {
   constructor(
     private readonly createPlayerUseCase: CreatePlayerUseCase,
+    private readonly listPlayersUseCase: ListPlayersUseCase,
     private readonly addCardToDeckUseCase: AddCardToDeckUseCase,
     private readonly getPlayerDeckUseCase: GetPlayerDeckUseCase,
   ) {}
+
+  public list = async (_request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+    const players = await this.listPlayersUseCase.execute();
+    reply.status(200).send(players);
+  };
 
   public create = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const body = validatePayload(createPlayerBodySchema, request.body);

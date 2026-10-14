@@ -2,6 +2,7 @@ import {
   AddCardToDeckUseCase,
   CreatePlayerUseCase,
   GetPlayerDeckUseCase,
+  ListPlayersUseCase,
 } from '@application/index';
 import { ScryfallProvider } from '@infrastructure/providers/scryfall.provider';
 import { PlayerController } from '../controllers/player.controller';
@@ -13,6 +14,7 @@ export function makePlayerController(): PlayerController {
   const scryfallGateway = new ScryfallProvider();
 
   const createPlayerUseCase = new CreatePlayerUseCase(playerRepository);
+  const listPlayersUseCase = new ListPlayersUseCase(playerRepository);
   const addCardToDeckUseCase = new AddCardToDeckUseCase(
     playerRepository,
     cardRepository,
@@ -20,5 +22,10 @@ export function makePlayerController(): PlayerController {
   );
   const getPlayerDeckUseCase = new GetPlayerDeckUseCase(playerRepository);
 
-  return new PlayerController(createPlayerUseCase, addCardToDeckUseCase, getPlayerDeckUseCase);
+  return new PlayerController(
+    createPlayerUseCase,
+    listPlayersUseCase,
+    addCardToDeckUseCase,
+    getPlayerDeckUseCase,
+  );
 }

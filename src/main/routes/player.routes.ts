@@ -4,11 +4,13 @@ import {
   addCardToDeckRouteSchema,
   createPlayerRouteSchema,
   getPlayerDeckRouteSchema,
+  listPlayersRouteSchema,
 } from '../schemas/openapi.schemas';
 
 export const playerRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const controller = makePlayerController();
 
+  app.get('/players', { schema: listPlayersRouteSchema }, controller.list);
   app.post('/players', { schema: createPlayerRouteSchema }, controller.create);
   app.post(
     '/players/:playerId/deck/cards',

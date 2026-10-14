@@ -7,5 +7,6 @@ export * from './use-cases/update-card.use-case';
 export * from './use-cases/delete-card.use-case';
 export * from './use-cases/search-scryfall.use-case';
 export * from './use-cases/create-player.use-case';
+export * from './use-cases/list-players.use-case';
 export * from './use-cases/add-card-to-deck.use-case';
 export * from './use-cases/get-player-deck.use-case';
