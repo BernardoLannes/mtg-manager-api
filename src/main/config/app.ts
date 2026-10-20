@@ -48,8 +48,8 @@ export function buildApp(): FastifyInstance {
       },
       servers: [
         {
-          url: 'http://localhost:3000',
-          description: 'Local development server',
+          url: '/',
+          description: 'Current Server (CasaOS / Tailscale / Local)',
         },
       ],
       tags: [
@@ -74,8 +74,7 @@ export function buildApp(): FastifyInstance {
       docExpansion: 'list',
       deepLinking: true,
     },
-    staticCSP: true,
-    transformStaticCSP: (header) => header,
+    staticCSP: false,
   });
 
   // Global Error Handler (AppError, Domain exceptions, Zod errors, and Prisma)
