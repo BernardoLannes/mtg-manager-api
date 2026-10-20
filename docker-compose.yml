@@ -1,10 +1,10 @@
-version: '3.8'
+name: mtg-manager
 
 services:
   postgres:
     image: postgres:16-alpine
     container_name: mtg_postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,7 +13,38 @@ services:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d mtg_manager']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mtg_api
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      USE_PRISMA: 'true'
+      DATABASE_URL: 'postgresql://postgres:postgres@postgres:5432/mtg_manager?schema=public'
+      SCRYFALL_API_URL: 'https://api.scryfall.com'
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   pgdata:
 
+x-casaos:
+  main: api
+  webui_port: 3000
+  title:
+    en_us: MTG Manager
+  tagline:
+    en_us: Magic The Gathering Decks & Collection Manager
