@@ -9,8 +9,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: mtg_manager
-    ports:
-      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +24,7 @@ services:
     container_name: mtg_api
     restart: unless-stopped
     ports:
-      - '3000:3000'
+      - '3030:3000'
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -43,7 +41,7 @@ volumes:
 
 x-casaos:
   main: api
-  webui_port: 3000
+  webui_port: 3030
   title:
     en_us: MTG Manager
   tagline:
